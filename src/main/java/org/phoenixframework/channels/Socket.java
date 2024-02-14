@@ -130,7 +130,7 @@ public class Socket {
 
     private TimerTask heartbeatTimerTask = null;
 
-    private final OkHttpClient httpClient = new OkHttpClient();
+    private  final OkHttpClient httpClient ;
 
     private final Set<IMessageCallback> messageCallbacks = Collections.newSetFromMap(new HashMap<IMessageCallback, Boolean>());
 
@@ -145,10 +145,10 @@ public class Socket {
     private final LinkedBlockingQueue<RequestBody> sendBuffer = new LinkedBlockingQueue<>();
 
     private final Set<ISocketCloseCallback> socketCloseCallbacks = Collections
-        .newSetFromMap(new HashMap<ISocketCloseCallback, Boolean>());
+            .newSetFromMap(new HashMap<ISocketCloseCallback, Boolean>());
 
     private final Set<ISocketOpenCallback> socketOpenCallbacks = Collections
-        .newSetFromMap(new HashMap<ISocketOpenCallback, Boolean>());
+            .newSetFromMap(new HashMap<ISocketOpenCallback, Boolean>());
 
     private Timer timer = null;
 
@@ -160,24 +160,29 @@ public class Socket {
      */
     private final PhoenixWSListener wsListener = new PhoenixWSListener();
 
-    public Socket(final String endpointUri) throws IOException {
-        this(endpointUri, DEFAULT_HEARTBEAT_INTERVAL);
+    public Socket(final String endpointUri) {
+        this(endpointUri, DEFAULT_HEARTBEAT_INTERVAL, new OkHttpClient());
     }
 
     public Socket(final String endpointUri, final int heartbeatIntervalInMs) {
+        this(endpointUri, heartbeatIntervalInMs, new OkHttpClient());
+    }
+
+    public Socket(final String endpointUri, final int heartbeatIntervalInMs, final OkHttpClient httpClient) {
         log.trace("PhoenixSocket({})", endpointUri);
         this.endpointUri = endpointUri;
         this.heartbeatInterval = heartbeatIntervalInMs;
+        this.httpClient = httpClient;
         this.timer = new Timer("Reconnect Timer for " + endpointUri);
     }
 
-    /**
-     * Retrieve a channel instance for the specified topic
-     *
-     * @param topic   The channel topic
-     * @param payload The message payload
-     * @return A Channel instance to be used for sending and receiving events for the topic
-     */
+        /**
+         * Retrieve a channel instance for the specified topic
+         *
+         * @param topic   The channel topic
+         * @param payload The message payload
+         * @return A Channel instance to be used for sending and receiving events for the topic
+         */
     public Channel chan(final String topic, final JsonNode payload) {
         log.trace("chan: {}, {}", topic, payload);
         final Channel channel = new Channel(topic, payload, Socket.this);
@@ -192,7 +197,7 @@ public class Socket {
         disconnect();
         // No support for ws:// or ws:// in okhttp. See https://github.com/square/okhttp/issues/1652
         final String httpUrl = this.endpointUri.replaceFirst("^ws:", "http:")
-            .replaceFirst("^wss:", "https:");
+                .replaceFirst("^wss:", "https:");
         final Request request = new Request.Builder().url(httpUrl).build();
         webSocket = httpClient.newWebSocket(request, wsListener);
     }
@@ -321,11 +326,11 @@ public class Socket {
     @Override
     public String toString() {
         return "PhoenixSocket{" +
-            "endpointUri='" + endpointUri + '\'' +
-            ", channels(" + channels.size() + ")=" + channels +
-            ", refNo=" + refNo +
-            ", webSocket=" + webSocket +
-            '}';
+                "endpointUri='" + endpointUri + '\'' +
+                ", channels(" + channels.size() + ")=" + channels +
+                ", refNo=" + refNo +
+                ", webSocket=" + webSocket +
+                '}';
     }
 
     synchronized String makeRef() {
@@ -382,7 +387,7 @@ public class Socket {
                 if (Socket.this.isConnected()) {
                     try {
                         Envelope envelope = new Envelope("phoenix", "heartbeat",
-                            new ObjectNode(JsonNodeFactory.instance), Socket.this.makeRef(), null);
+                                new ObjectNode(JsonNodeFactory.instance), Socket.this.makeRef(), null);
                         Socket.this.push(envelope);
                     } catch (Exception e) {
                         log.error("Failed to send heartbeat", e);
@@ -392,7 +397,7 @@ public class Socket {
         };
 
         timer.schedule(Socket.this.heartbeatTimerTask, Socket.this.heartbeatInterval,
-            Socket.this.heartbeatInterval);
+                Socket.this.heartbeatInterval);
     }
 
     private void triggerChannelError() {
